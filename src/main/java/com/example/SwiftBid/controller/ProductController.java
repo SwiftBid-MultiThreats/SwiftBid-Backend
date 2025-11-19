@@ -2,8 +2,11 @@ package com.example.SwiftBid.controller;
 
 import java.util.List;
 
+import com.example.SwiftBid.payload.ApiResponse;
+import com.example.SwiftBid.payload.product.MyProductResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,6 +30,15 @@ public class ProductController {
     @GetMapping
     public ResponseEntity<List<Product>> getAllProducts() {
         return ResponseEntity.ok(productService.getAllProducts());
+    }
+
+    @GetMapping("/my-products")
+    public ResponseEntity<ApiResponse<List<MyProductResponse>>> getMyProducts(Authentication authentication) {
+        String username = authentication.getName();
+        List<MyProductResponse> myProducts = productService.getMyProducts(username);
+
+        // Sử dụng phương thức tĩnh tiện ích
+        return ApiResponse.success(myProducts);
     }
 
     @GetMapping("/{id}")

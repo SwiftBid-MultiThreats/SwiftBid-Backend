@@ -68,10 +68,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 // --- Endpoints Xác thực ---
-                                "/api/auth/register", // Đăng ký
-                                "/api/auth/login",    // Đăng nhập
-                                "/api/products/**",
-                                "/api/auctions/**",
+
+                                "/api/**",
                                 "/ws/**", // Endpoint cho WebSocket Handshake
                                 "/topic/**", // (Tạm thời cho phép)
                                 "/app/**",   // (Tạm thời cho phép)

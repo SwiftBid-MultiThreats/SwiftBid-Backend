@@ -4,12 +4,17 @@ package com.example.SwiftBid.service.impl;
 import com.example.SwiftBid.config.JwtUtil;
 import com.example.SwiftBid.exception.AppException;
 import com.example.SwiftBid.exception.ErrorCode;
+import com.example.SwiftBid.model.Role;
 import com.example.SwiftBid.model.User;
-import com.example.SwiftBid.model.enums.UserRole;
-import com.example.SwiftBid.payload.*;
+import com.example.SwiftBid.model.UserDetail;
+import com.example.SwiftBid.payload.authentication.*;
+import com.example.SwiftBid.repository.RoleRepository;
 import com.example.SwiftBid.repository.UserRepository;
 import com.example.SwiftBid.service.AuthService;
+import com.example.SwiftBid.service.UserDetailService;
+import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -18,19 +23,24 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AuthServiceImpl implements AuthService {
 
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final JwtUtil jwtUtil;
-    private final AuthenticationManager authenticationManager;
-    // Chúng ta sẽ cần inject MailService sau
-    // private final MailService mailService;
+      UserRepository userRepository;
+      PasswordEncoder passwordEncoder;
+      JwtUtil jwtUtil;
+      AuthenticationManager authenticationManager;
+      UserDetailService userDetailService;
+      RoleRepository roleRepository;
 
     @Override
     public AuthResponse register(RegisterRequest request) {
@@ -45,13 +55,22 @@ public class AuthServiceImpl implements AuthService {
         user.setUsername(request.username());
         user.setEmail(request.email());
         user.setPasswordHash(passwordEncoder.encode(request.password()));
-        user.setRole(UserRole.USER); // Mặc định là USER
+
+        Role userRole = roleRepository.findByName("USER")
+                .orElseThrow(() -> new RuntimeException("Lỗi: Không tìm thấy vai trò 'USER'. (Chạy SQL Bước 1)"));
+
+        user.setRoles(Set.of(userRole));
 
         // 3. Lưu vào CSDL
         userRepository.save(user);
 
+        UserDetail userDetail = new UserDetail();
+        userDetail.setUser(user);
+        user.setUserDetail(userDetail);
+        userRepository.save(user);
+
         // 4. Tạo Token
-        String token = jwtUtil.generateToken(user.getUsername(), user.getRole().name());
+        String token = generateTokenFromUser(user);
         return new AuthResponse(token);
     }
 
@@ -71,7 +90,7 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         // 3. Tạo Token
-        String token = jwtUtil.generateToken(user.getUsername(), user.getRole().name());
+        String token = generateTokenFromUser(user);
         return new AuthResponse(token);
     }
 
@@ -125,5 +144,15 @@ public class AuthServiceImpl implements AuthService {
         user.setResetToken(null);
         user.setResetTokenExpiry(null);
         userRepository.save(user);
+    }
+
+    private String generateTokenFromUser(User user) {
+        // Lấy danh sách các tên Role (ví dụ: "ADMIN", "USER")
+        Set<String> roles = user.getRoles().stream()
+                .map(Role::getName)
+                .collect(Collectors.toSet());
+
+        // Cập nhật JwtUtil của bạn để nhận Set<String>
+        return jwtUtil.generateToken(user.getUsername(), roles);
     }
 }

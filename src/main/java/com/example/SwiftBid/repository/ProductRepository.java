@@ -5,6 +5,9 @@ import org.springframework.stereotype.Repository;
 
 import com.example.SwiftBid.model.Product;
 
+import java.util.List;
+
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
+    List<Product> findBySellerId(Long sellerId);
 }

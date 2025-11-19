@@ -1,7 +1,7 @@
 // trong com.example.SwiftBid.controller.AuthController.java
 package com.example.SwiftBid.controller;
 
-import com.example.SwiftBid.payload.*;
+import com.example.SwiftBid.payload.authentication.*;
 import com.example.SwiftBid.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

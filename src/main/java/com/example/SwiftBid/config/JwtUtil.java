@@ -8,9 +8,7 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.security.Key;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 
 @Component
@@ -68,9 +66,18 @@ public class JwtUtil {
         return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
     }
 
-    public String generateToken(String username, String role) {
+    public Set<String> extractRoles(String token) {
+        // Claims.get() trả về List, chúng ta chuyển sang Set
+        List<String> rolesList = extractClaim(token, claims -> claims.get("roles", List.class));
+        if (rolesList == null) {
+            return Set.of();
+        }
+        return new HashSet<>(rolesList);
+    }
+
+    public String generateToken(String username, Set<String> roles) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("role", role);
+        claims.put("roles", roles); // Đưa Set<String> vào claims
         return createToken(claims, username);
     }
 

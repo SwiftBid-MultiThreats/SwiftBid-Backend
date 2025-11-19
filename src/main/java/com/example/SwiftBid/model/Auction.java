@@ -50,11 +50,9 @@ public class Auction {
     @Version
     @Column(name = "version", nullable = false)
     private Integer version;
-    
-    // Constructors
-    public Auction() {
-        this.createdAt = Instant.now();
-        this.version = 0;
-    }
+
+    @OneToOne(mappedBy = "auction", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private AuctionDetail auctionDetail;
+
 
 }

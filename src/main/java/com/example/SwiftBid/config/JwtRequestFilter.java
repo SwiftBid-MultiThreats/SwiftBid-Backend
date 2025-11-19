@@ -25,7 +25,7 @@ import java.util.Collections;
 public class JwtRequestFilter extends OncePerRequestFilter {
 
     private final UserDetailsService userDetailsService;
-    private final JwtUtil jwtUtil; // Bạn sẽ cần tạo lớp này
+    private final JwtUtil jwtUtil;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
@@ -35,45 +35,39 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 
         String username = null;
         String jwt = null;
-        String role = null;
 
-        // 1. Kiểm tra header và lấy Token
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             jwt = authorizationHeader.substring(7);
             try {
                 username = jwtUtil.extractUsername(jwt);
-                role = jwtUtil.extractRole(jwt); // Giữ logic của bạn: lấy role từ token
             } catch (ExpiredJwtException e) {
-                // Thay đổi 2: Không dùng setErrorResponse, để cho Spring Security xử lý
-                // Lỗi này sẽ được bắt bởi AuthenticationEntryPoint trong SecurityConfig
                 logger.warn("JWT token has expired", e);
             } catch (JwtException e) {
                 logger.warn("Invalid JWT token", e);
             }
         }
 
-        // 2. Xác thực
-        // Nếu đã có username VÀ chưa có ai được xác thực trong SecurityContext
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
+            // 1. Tải UserDetails (bước này đã tự động lấy roles TỪ DATABASE)
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
 
-            // 3. Nếu token hợp lệ, set Authentication trong SecurityContext
             if (jwtUtil.validateToken(jwt, userDetails.getUsername())) {
 
-                // Giữ logic cũ của bạn: tạo Authority từ Role có trong Token
-                SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role.toUpperCase());
-
+                // 2. Lấy quyền TỪ DATABASE (an toàn nhất)
+                // Thay vì tự tạo SimpleGrantedAuthority từ token
                 UsernamePasswordAuthenticationToken authenticationToken =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, Collections.singletonList(authority));
+                        new UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities() // Dùng quyền TỪ DB
+                        );
 
                 authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authenticationToken);
             }
         }
 
-        // Thay đổi 3: Bỏ hoàn toàn logic isPublicEndpoint.
-        // Luôn chạy filter, SecurityConfig sẽ lo phần phân quyền.
         chain.doFilter(request, response);
     }
 }

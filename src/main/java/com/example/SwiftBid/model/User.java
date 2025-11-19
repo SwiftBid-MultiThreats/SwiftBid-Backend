@@ -1,11 +1,12 @@
 package com.example.SwiftBid.model;
 
-import com.example.SwiftBid.model.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Entity representing a user in the system
@@ -29,10 +30,7 @@ public class User {
     
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
-    
-    @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false)
-    private UserRole role;
+
     
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -42,6 +40,17 @@ public class User {
 
     @Column(name = "reset_token_expiry")
     private Instant resetTokenExpiry;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private UserDetail userDetail;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "user_roles",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    private Set<Role> roles = new HashSet<>();
     
     // Constructors
     public User() {
