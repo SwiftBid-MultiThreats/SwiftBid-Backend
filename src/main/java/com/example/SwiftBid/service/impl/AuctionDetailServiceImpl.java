@@ -47,25 +47,20 @@ public class AuctionDetailServiceImpl implements AuctionDetailService {
     @Override
     @Transactional(readOnly = true)
     public AuctionDetailResponse getAuctionDetail(Long auctionId) {
-        Auction auction = auctionRepository.findById(auctionId)
+        Auction auction = auctionRepository.findByIdWithDetails(auctionId)
                 .orElseThrow(() -> new AppException(ErrorCode.AUCTION_NOT_FOUND));
-
-        // Dùng helper để khởi tạo nếu null
-        return AuctionDetailResponse.fromEntity(auction.getAuctionDetail());
+        return AuctionDetailResponse.fromEntity(auction);
     }
 
     @Override
     @Transactional
     public AuctionDetailResponse updateAuctionDetail(Long auctionId, UpdateAuctionDetailRequest request, String username) {
         Auction auction = findAndCheckPermission(auctionId, username);
-        AuctionDetail detail = auction.getAuctionDetail(); // Đảm bảo khởi tạo
-
+        AuctionDetail detail = auction.getAuctionDetail();
         detail.setAuctionDescription(request.auctionDescription());
         detail.setTargetAudience(request.targetAudience());
         detail.setAdditionalTerms(request.additionalTerms());
-
-        // Không cần save, @Transactional sẽ tự động cập nhật
-        return AuctionDetailResponse.fromEntity(detail);
+        return AuctionDetailResponse.fromEntity(auction);
     }
 
     @Override

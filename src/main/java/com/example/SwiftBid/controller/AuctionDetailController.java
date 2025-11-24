@@ -27,10 +27,6 @@ public class AuctionDetailController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Cập nhật thông tin text (Mô tả, Đối tượng,...)
-     * (Yêu cầu quyền Admin hoặc Seller)
-     */
     @PutMapping
     public ResponseEntity<AuctionDetailResponse> updateAuctionDetails(
             @PathVariable Long auctionId,
