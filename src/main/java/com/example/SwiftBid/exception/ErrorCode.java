@@ -28,7 +28,10 @@ public enum ErrorCode {
     AUCTION_NOT_FOUND(3001, "Phiên đấu giá không tồn tại"),
     AUCTION_DETAIL_NOT_FOUND(3002, "Không tìm thấy chi tiết phiên đấu giá"),
     FORBIDDEN_ACTION(1005, "Bạn không có quyền thực hiện hành động này"),
-    AUCTION_CANNOT_BE_DELETED(1006, "Phiên đấu giá này không thể cập nhật");
+    AUCTION_CANNOT_BE_DELETED(1006, "Phiên đấu giá này không thể cập nhật"),
+
+    PRODUCT_NOT_FOUND(4001, "Sản phẩm không tồn tại");
+    ;
 
     int errorCode;
     String errorMessage;

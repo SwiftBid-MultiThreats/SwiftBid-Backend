@@ -1,25 +1,21 @@
 package com.example.SwiftBid.controller;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import com.example.SwiftBid.payload.ApiResponse;
 import com.example.SwiftBid.payload.product.MyProductResponse;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.example.SwiftBid.model.Product;
 import com.example.SwiftBid.service.ProductService;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/products")
@@ -46,9 +42,29 @@ public class ProductController {
         return ResponseEntity.ok(productService.getProductById(id));
     }
 
-    @PostMapping
-    public ResponseEntity<Product> createProduct(@RequestBody Product product) {
-        Product createdProduct = productService.createProduct(product);
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE) // Bắt buộc dòng này
+    public ResponseEntity<MyProductResponse> createProduct(
+            // Nhận các trường text qua @RequestParam (hoặc @RequestPart nếu dùng JSON string)
+            @RequestParam("name") String name,
+            @RequestParam("description") String description,
+            @RequestParam("initialPrice") BigDecimal initialPrice,
+
+            // Nhận file ảnh
+            @RequestParam(value = "image", required = false) MultipartFile image,
+
+            Authentication authentication) {
+
+        String username = authentication.getName();
+
+        // Tạo đối tượng Product từ các param
+        Product product = new Product();
+        product.setName(name);
+        product.setDescription(description);
+        product.setInitialPrice(initialPrice);
+
+        // Gọi Service
+        MyProductResponse createdProduct = productService.createProduct(product, image, username);
+
         return ResponseEntity.status(HttpStatus.CREATED).body(createdProduct);
     }
 

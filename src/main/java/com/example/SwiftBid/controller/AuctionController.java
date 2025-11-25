@@ -7,6 +7,7 @@ import com.example.SwiftBid.payload.auction.UpdateAuctionRequest;
 import com.example.SwiftBid.service.AuctionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -33,9 +34,9 @@ public class AuctionController {
         return ResponseEntity.ok(auctionService.getAuctionById(id));
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<AuctionSummaryResponse> createAuction(
-            @RequestBody CreateAuctionRequest request,
+            @ModelAttribute CreateAuctionRequest request,
             Authentication authentication) {
 
         String username = authentication.getName();

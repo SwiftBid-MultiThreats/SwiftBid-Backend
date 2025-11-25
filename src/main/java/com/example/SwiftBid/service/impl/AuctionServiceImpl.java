@@ -11,6 +11,7 @@ import com.example.SwiftBid.payload.auction.AuctionSummaryResponse;
 import com.example.SwiftBid.payload.auction.CreateAuctionRequest;
 import com.example.SwiftBid.payload.auction.UpdateAuctionRequest;
 import com.example.SwiftBid.repository.UserRepository;
+import com.example.SwiftBid.service.CloudinaryService;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +30,7 @@ public class AuctionServiceImpl implements AuctionService {
     private final AuctionRepository auctionRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
+    private final CloudinaryService cloudinaryService;
 
     @Override
     public List<AuctionSummaryResponse> getAllAuctions() {
@@ -71,14 +73,13 @@ public class AuctionServiceImpl implements AuctionService {
     @Override
     @Transactional
     public AuctionSummaryResponse createAuction(CreateAuctionRequest request, String sellerUsername) {
-        // 1. Kiểm tra quyền và tìm kiếm
+        // 1. Kiểm tra quyền và tìm kiếm (Giữ nguyên logic cũ)
         User seller = userRepository.findByUsername(sellerUsername)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         Product product = productRepository.findById(request.productId())
-                .orElseThrow(() -> new AppException(ErrorCode.AUCTION_NOT_FOUND)); // Giả sử dùng mã lỗi này
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
 
-        // Security Check: Đảm bảo chỉ Seller/Admin mới được tạo auction
         boolean isSellerOrAdmin = seller.getRoles().stream()
                 .anyMatch(r -> r.getName().equals("SELLER") || r.getName().equals("ADMIN"));
 
@@ -86,36 +87,46 @@ public class AuctionServiceImpl implements AuctionService {
             throw new AppException(ErrorCode.FORBIDDEN_ACTION);
         }
 
-        // 2. Tạo Entity Auction
+        // Kiểm tra: Người tạo Auction phải là chủ sở hữu Product (trừ khi là Admin)
+        // (Bạn có thể thêm logic này nếu cần chặt chẽ hơn)
+
+        // 2. Tạo Entity Auction (Giữ nguyên)
         Auction auction = new Auction();
         auction.setProduct(product);
         auction.setStartTime(request.startTime());
         auction.setEndTime(request.endTime());
-
-        // Logic nghiệp vụ: Set giá khởi điểm và trạng thái
         auction.setCurrentHighestBidAmount(product.getInitialPrice());
-        auction.setStatus(AuctionStatus.PENDING); // Mặc định là chờ
+        auction.setStatus(AuctionStatus.PENDING);
 
-        // 3. Tạo Entity AuctionDetail (và thiết lập quan hệ 1-1)
+        // 3. Tạo Entity AuctionDetail
         AuctionDetail detail = new AuctionDetail();
-
-        // Lấy ID từ Auction để thiết lập quan hệ 1-1
         detail.setAuction(auction);
         detail.setAuctionDescription(request.auctionDescription());
         detail.setTargetAudience(request.targetAudience());
         detail.setAdditionalTerms(request.additionalTerms());
-        detail.setBannerImageUrl(request.bannerImageUrl()); // URL từ Cloudinary
 
-        // Thiết lập quan hệ hai chiều (để đảm bảo cascade hoạt động)
+        // --- LOGIC UPLOAD ẢNH BANNER (MỚI) ---
+        if (request.bannerImage() != null && !request.bannerImage().isEmpty()) {
+            // Upload vào folder "auction_banners"
+            String bannerUrl = cloudinaryService.uploadImage(request.bannerImage(), "auction_banners");
+            detail.setBannerImageUrl(bannerUrl);
+        } else {
+             detail.setBannerImageUrl("https://media1.thehungryjpeg.com/thumbs2/ori_3880868_5glgyjhuq6907sry3ecj3rlv5smguypju3eysdp6_white-boxes-mockup-blank-product-package-3d-in-various-size-templates.jpg");
+        }
+        // -------------------------------------
+
         auction.setAuctionDetail(detail);
 
-        // 4. Lưu Auction (JPA sẽ tự động lưu AuctionDetail nhờ CascadeType.ALL)
+        // 4. Lưu và Tải lại đầy đủ (Để tránh lỗi Lazy Loading khi map sang DTO)
         Auction savedAuction = auctionRepository.save(auction);
 
-        // 5. Trả về DTO
-        return AuctionSummaryResponse.fromEntity(savedAuction);
-    }
+        // Quan trọng: Fetch lại để lấy đủ thông tin cho DTO
+        Auction fullyLoadedAuction = auctionRepository.findByIdWithDetails(savedAuction.getId())
+                .orElseThrow(() -> new AppException(ErrorCode.AUCTION_NOT_FOUND));
 
+        // 5. Trả về DTO
+        return AuctionSummaryResponse.fromEntity(fullyLoadedAuction);
+    }
     @Override
     public List<AuctionSummaryResponse> getFeaturedAuctions() {
         // 1. Gọi phương thức đã tối ưu (ví dụ: chỉ lấy các phiên ACTIVE)

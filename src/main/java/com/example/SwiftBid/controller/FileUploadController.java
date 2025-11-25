@@ -1,4 +1,4 @@
-package com.example.SwiftBid.service;
+package com.example.SwiftBid.controller;
 
 import com.example.SwiftBid.payload.FileUploadResponse;
 import com.example.SwiftBid.service.CloudinaryService;
