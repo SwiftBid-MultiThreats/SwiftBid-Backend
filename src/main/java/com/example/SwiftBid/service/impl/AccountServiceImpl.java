@@ -1,9 +1,13 @@
 package com.example.SwiftBid.service.impl;
 
+import com.example.SwiftBid.dto.account.AccountStatsResponse;
 import com.example.SwiftBid.exception.ResourceNotFoundException;
 import com.example.SwiftBid.model.Role;
 import com.example.SwiftBid.model.User;
+import com.example.SwiftBid.model.enums.AuctionStatus;
 import com.example.SwiftBid.model.enums.RoleName;
+import com.example.SwiftBid.repository.AuctionRepository;
+import com.example.SwiftBid.repository.BidRepository;
 import com.example.SwiftBid.repository.RoleRepository;
 import com.example.SwiftBid.repository.UserRepository;
 import com.example.SwiftBid.service.AccountService;
@@ -20,6 +24,8 @@ public class AccountServiceImpl implements AccountService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final AuctionRepository auctionRepository;
+    private final BidRepository bidRepository;
 
     @Override
     public List<String> getRoles(Long userId) {
@@ -44,5 +50,13 @@ public class AccountServiceImpl implements AccountService {
                 .orElseGet(() -> roleRepository.save(new Role(RoleName.SELLER)));
         user.getRoles().add(sellerRole);
         userRepository.save(user);
+    }
+
+    @Override
+    public AccountStatsResponse getStats(Long userId) {
+        long auctionsCreated = auctionRepository.countByProductSellerId(userId);
+        long auctionsParticipated = bidRepository.countDistinctAuctionsByUserId(userId);
+        long auctionsWon = auctionRepository.countByStatusAndCurrentHighestBidderId(AuctionStatus.COMPLETED, userId);
+        return new AccountStatsResponse(auctionsCreated, auctionsParticipated, auctionsWon);
     }
 }

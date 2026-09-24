@@ -22,6 +22,9 @@ public interface AuctionService {
     /** FR-AUC-08 */
     List<AuctionResponse> getFeaturedAuctions(int limit);
 
+    /** Seller's own auctions ("My Auctions" page). */
+    List<AuctionResponse> getMyAuctions(Long sellerId);
+
     /** FR-AUC-01 — requester must own {@code productId}, unless admin. */
     AuctionResponse createAuction(Long requesterId, boolean isAdmin, Long productId, Instant startTime, Instant endTime,
                                    String auctionDescription, String targetAudience, String additionalTerms,

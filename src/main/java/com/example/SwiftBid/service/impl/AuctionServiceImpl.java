@@ -66,6 +66,11 @@ public class AuctionServiceImpl implements AuctionService {
     }
 
     @Override
+    public List<AuctionResponse> getMyAuctions(Long sellerId) {
+        return auctionRepository.findByProductSellerId(sellerId).stream().map(this::toResponse).toList();
+    }
+
+    @Override
     @Transactional
     public AuctionResponse createAuction(Long requesterId, boolean isAdmin, Long productId, Instant startTime,
                                           Instant endTime, String auctionDescription, String targetAudience,

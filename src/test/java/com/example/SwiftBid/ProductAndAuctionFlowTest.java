@@ -2,7 +2,9 @@ package com.example.SwiftBid;
 
 import com.example.SwiftBid.dto.auction.AuctionDetailResponse;
 import com.example.SwiftBid.dto.auth.AuthResponse;
+import com.example.SwiftBid.service.AuctionService;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 
 import java.math.BigDecimal;
@@ -15,6 +17,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Covers TC-PROD-01/02/04, TC-AUC-01/02/05 from docs/tests.md. */
 class ProductAndAuctionFlowTest extends AbstractIntegrationTest {
+
+    @Autowired
+    private AuctionService auctionService;
 
     @Test
     void createProduct_asPlainUser_isForbidden() {
@@ -107,5 +112,56 @@ class ProductAndAuctionFlowTest extends AbstractIntegrationTest {
                 "/api/auctions", new HttpEntity<>(form, headers), Object.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void myAuctions_onlyReturnsCallersOwnAuctions() {
+        String seller1 = registerSeller("nolan");
+        String seller2 = registerSeller("olive");
+        Long product1 = createProduct(seller1, "Sản phẩm của Nolan", new BigDecimal("60000"));
+        Long product2 = createProduct(seller2, "Sản phẩm của Olive", new BigDecimal("70000"));
+        createAuction(seller1, product1, Instant.now().toString(), Instant.now().plus(1, ChronoUnit.DAYS).toString());
+        createAuction(seller2, product2, Instant.now().toString(), Instant.now().plus(1, ChronoUnit.DAYS).toString());
+
+        ResponseEntity<Map[]> response = restTemplate.exchange(
+                "/api/auctions/my-auctions", HttpMethod.GET, new HttpEntity<>(null, authHeaders(seller1)), Map[].class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).hasSize(1);
+    }
+
+    @Test
+    void myAuctions_withoutToken_isUnauthorized() {
+        ResponseEntity<Object> response = restTemplate.getForEntity("/api/auctions/my-auctions", Object.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void accountStats_reflectCreatedParticipatedAndWonAuctions() {
+        String seller = registerSeller("penny");
+        String bidder = register("quincy").token();
+        Long productId = createProduct(seller, "Sản phẩm cho account stats", new BigDecimal("100000"));
+        Long auctionId = createAuction(seller, productId,
+                Instant.now().minus(1, ChronoUnit.MINUTES).toString(), Instant.now().plus(1, ChronoUnit.DAYS).toString());
+        auctionService.activatePendingAuctions(); // PENDING -> ACTIVE so the bid below is accepted
+
+        // Seller side: exactly 1 auction created.
+        ResponseEntity<Map> sellerStats = restTemplate.exchange(
+                "/api/account/stats", HttpMethod.GET, new HttpEntity<>(null, authHeaders(seller)), Map.class);
+        assertThat(sellerStats.getBody().get("auctionsCreated")).isEqualTo(1);
+
+        // Bidder side: 0 participated before bidding.
+        ResponseEntity<Map> beforeBid = restTemplate.exchange(
+                "/api/account/stats", HttpMethod.GET, new HttpEntity<>(null, authHeaders(bidder)), Map.class);
+        assertThat(beforeBid.getBody().get("auctionsParticipated")).isEqualTo(0);
+
+        restTemplate.postForEntity("/api/bids", new HttpEntity<>(
+                new com.example.SwiftBid.dto.bid.PlaceBidRequest(auctionId, new BigDecimal("150000")), authHeaders(bidder)),
+                Object.class);
+
+        ResponseEntity<Map> afterBid = restTemplate.exchange(
+                "/api/account/stats", HttpMethod.GET, new HttpEntity<>(null, authHeaders(bidder)), Map.class);
+        assertThat(afterBid.getBody().get("auctionsParticipated")).isEqualTo(1);
+        assertThat(afterBid.getBody().get("auctionsWon")).isEqualTo(0); // auction still ACTIVE, not COMPLETED yet
     }
 }

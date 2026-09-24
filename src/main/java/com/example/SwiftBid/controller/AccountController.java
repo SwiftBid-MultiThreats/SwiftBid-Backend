@@ -1,5 +1,6 @@
 package com.example.SwiftBid.controller;
 
+import com.example.SwiftBid.dto.account.AccountStatsResponse;
 import com.example.SwiftBid.dto.common.MessageResponse;
 import com.example.SwiftBid.security.SecurityUtils;
 import com.example.SwiftBid.service.AccountService;
@@ -12,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** FR-AUTH-07/08. */
+/** FR-AUTH-07/08, FR-USER-04. */
 @RestController
 @RequestMapping("/api/account")
 @RequiredArgsConstructor
@@ -29,5 +30,10 @@ public class AccountController {
     public ResponseEntity<MessageResponse> becomeSeller() {
         accountService.becomeSeller(SecurityUtils.currentUserId());
         return ResponseEntity.ok(new MessageResponse("Nâng cấp tài khoản thành SELLER thành công!"));
+    }
+
+    @GetMapping("/stats")
+    public ResponseEntity<AccountStatsResponse> getStats() {
+        return ResponseEntity.ok(accountService.getStats(SecurityUtils.currentUserId()));
     }
 }

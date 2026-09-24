@@ -46,6 +46,11 @@ public class AuctionController {
         return ResponseEntity.ok(auctionService.getFeaturedAuctions(limit));
     }
 
+    @GetMapping("/my-auctions")
+    public ResponseEntity<List<AuctionResponse>> getMyAuctions() {
+        return ResponseEntity.ok(auctionService.getMyAuctions(SecurityUtils.currentUserId()));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<AuctionResponse> getAuctionById(@PathVariable Long id) {
         return ResponseEntity.ok(auctionService.getAuctionById(id));

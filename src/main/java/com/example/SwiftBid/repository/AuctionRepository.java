@@ -16,9 +16,16 @@ public interface AuctionRepository extends JpaRepository<Auction, Long> {
 
     List<Auction> findByStatus(AuctionStatus status);
 
+    List<Auction> findByProductSellerId(Long sellerId);
+
     long countByStatus(AuctionStatus status);
 
     boolean existsByProductId(Long productId);
+
+    // FR-USER-04: account stats.
+    long countByProductSellerId(Long sellerId);
+
+    long countByStatusAndCurrentHighestBidderId(AuctionStatus status, Long userId);
 
     @Query("SELECT COALESCE(SUM(a.currentHighestBidAmount), 0) FROM Auction a "
             + "WHERE a.status = com.example.SwiftBid.model.enums.AuctionStatus.COMPLETED AND a.currentHighestBidder IS NOT NULL")
