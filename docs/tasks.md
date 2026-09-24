@@ -63,14 +63,23 @@
 - [x] `T-5.1` [BE] `GET /api/auctions/featured` (top N theo `bidCount` hoặc cờ `featured`). — FR-AUC-08
 - [x] `T-5.2` [BE] Endpoint thống kê trang chủ (số phiên hoàn thành, số user, tổng giá trị giao dịch). — FR-HOME-01
 - [x] `T-5.3` [FE] `HomePage`/`Projects` gọi API thật thay vì `src/data.js` tĩnh. — FR-HOME-01, 02
-  - ✅ `Projects` (trang chủ + khối "Phiên đấu giá nổi bật") đã gọi `auctionService.getFeaturedAuctions()` thật, đã sửa các trường không khớp (`ENDED`→`COMPLETED`, `startingPrice`→`product.initialPrice`).
-  - ⚠️ Chưa xong hoàn toàn: khối thống kê số liệu ở `HomePage.js` (số phiên hoàn thành, số người dùng...) vẫn đang hard-code tĩnh (`data-target`, `data-display`), chưa gọi `GET /api/home/stats` (đã có sẵn ở BE từ `T-5.2`). Để lại cho vòng sau.
+  - ✅ `Projects` gọi `auctionService.getFeaturedAuctions()` thật, đã sửa các trường không khớp (`ENDED`→`COMPLETED`, `startingPrice`→`product.initialPrice`).
+  - ✅ `HomePage.js` nay gọi `homeService.getStats()` (`GET /api/home/stats`) cho 2/4 ô thống kê (số phiên hoàn thành, số người dùng — có animation đếm số); ô "Tổng giá trị giao dịch" hiển thị số thật định dạng VNĐ. Ô "Khách hàng hài lòng" (99.9%) giữ tĩnh vì hệ thống chưa có cơ chế đánh giá/rating để tính ra con số này.
 - [x] `T-5.4` [BE] `@PreAuthorize("hasRole('ADMIN')")` cho toàn bộ `UserController`; audit lại mọi endpoint quản trị. — FR-ADMIN-01
 - [x] `T-5.5` [BE] Cho phép Admin bỏ qua kiểm tra "chủ sở hữu" ở Product/Auction update/delete. — FR-ADMIN-02
 - [x] `T-5.6` [BE] `GET /api/bids/user/{userId}`. — FR-BID-04
-- [ ] `T-5.7` [BE] Thống kê tài khoản cho `ProfilePage` (số đấu giá tạo/tham gia/thắng). — FR-USER-04
+- [x] `T-5.7` [BE] Thống kê tài khoản cho `ProfilePage` (số đấu giá tạo/tham gia/thắng). — FR-USER-04
+  - `GET /api/account/stats` (`AccountStatsResponse`), wired vào `ProfilePage.js`.
 - [x] `T-5.8` [BE] (Tùy chọn) `POST /api/contact` lưu `contact_messages`, thay dần EmailJS client-side. — FR-STATIC-02 mở rộng
 - [ ] `T-5.9` [BE] Email thông báo thắng/thua khi auction chuyển `COMPLETED` (nối vào `T-3.5`). — FR-NOTIF-02
+
+### Bổ sung ngoài checklist gốc (phát hiện khi audit UI vòng 2)
+
+- [x] `T-5.10` [BE+FE] `GET /api/auctions/my-auctions` + trang `MyAuctionsPage` (sửa lịch khi PENDING, hủy phiên) — nav đã có link `/my-auctions` từ trước nhưng route/API chưa tồn tại (404 thật). — FR-AUC-04/05
+- [x] `T-5.11` [FE] Trang `MyBidsPage` (`/my-bids`) hiển thị lịch sử đặt giá của chính user, đánh dấu bid đang thắng — nav đã có link nhưng route chưa tồn tại (404 thật). — FR-BID-04
+- [x] `T-5.12` [FE] Bộ lọc "Danh mục" ở `AuctionsPage`: state `selectedCategory` và logic filter đã có sẵn nhưng **không có UI để đổi giá trị** — filter chết, luôn kẹt ở "ALL". Thêm dropdown chọn danh mục (lấy động từ dữ liệu). — FR-AUC-02
+- [x] `T-5.13` [FE] Sửa `auctionService.updateAuction` gửi JSON body trong khi backend nhận `startTime`/`endTime` qua request param — sẽ luôn lỗi 400 nếu dùng. — FR-AUC-04
+- [x] `T-5.14` [FE] Đồng hồ đếm ngược ở `AuctionDetailPage` giờ tick mỗi giây thay vì chỉ tính 1 lần lúc render.
 
 ---
 
@@ -83,15 +92,17 @@
 | Phase 2 | 8 | 8 | 0 |
 | Phase 3 | 10 | 10 | 0 |
 | Phase 4 | 7 | 7 | 0 |
-| Phase 5 | 9 | 7 | 2 (`T-5.7`, `T-5.9`) |
-| **Tổng** | **46** | **44** | **2** |
+| Phase 5 | 9 + 5 bổ sung | 13 | 1 (`T-5.9`) |
+| **Tổng** | **51** | **50** | **1** |
 
-**Trạng thái triển khai (cập nhật sau vòng code đầu tiên)**: Phase 0–4 đã cài đặt đầy đủ và có test tích hợp pass (28/28, xem `tests.md` §8 và kết quả `mvn test`), bao gồm cả test đặt giá đồng thời đa luồng (`BidConcurrencyTest`, 10/10 lần chạy không flaky). Phase 5 gần như hoàn tất, còn lại 2 việc nhỏ (P2, không chặn MVP):
-- `T-5.7` — thống kê tài khoản thật cho `ProfilePage` (hiện FE vẫn hard-code số liệu `0`).
-- `T-5.9` — email thông báo thắng/thua khi phiên đấu giá chuyển `COMPLETED`.
+**Trạng thái triển khai (cập nhật sau vòng audit UI thứ 2)**: Phase 0–4 và gần như toàn bộ Phase 5 đã cài đặt, có test tích hợp pass (31/31, xem `tests.md` §8 và kết quả `mvn test`), bao gồm cả test đặt giá đồng thời đa luồng (`BidConcurrencyTest`, 10/10 lần chạy không flaky). Chỉ còn lại:
+- `T-5.9` — email thông báo thắng/thua khi phiên đấu giá chuyển `COMPLETED` (P2, không chặn MVP).
 
-Ngoài checklist gốc, quá trình triển khai còn phát hiện và sửa thêm 2 lỗi thực tế không nằm trong kế hoạch ban đầu:
+Ngoài checklist gốc, quá trình triển khai (2 vòng) còn phát hiện và sửa thêm các lỗi/khoảng trống thực tế không nằm trong kế hoạch ban đầu:
 - `bidService.js` (frontend) đọc token từ `localStorage['authToken']` trong khi toàn bộ app dùng key `'token'` — khiến mọi request đặt giá trước đây **không bao giờ gửi kèm JWT**. Đã hợp nhất về dùng chung `config/api.js`.
 - `ProductRepository.search()` dùng `LOWER()` trên field `description` từng được map `@Lob`/CLOB — Hibernate 6 chặn ở bước validate query (lỗi ngay cả với MySQL, không riêng gì H2 test). Đã bỏ `@Lob` khỏi các field mô tả dạng TEXT không cần streaming.
+- Menu người dùng (`Navigation.js`) trỏ tới `/my-auctions`, `/my-bids`, `/settings` — **cả 3 route đều 404 thật** vì trang/route chưa từng được tạo. Đã bổ sung `MyAuctionsPage`, `MyBidsPage` (+ API `GET /api/auctions/my-auctions`, `GET /api/account/stats`); `Settings` trỏ về `/profile`.
+- Bộ lọc "Danh mục" ở `AuctionsPage` có state + logic filter đầy đủ nhưng **không có UI để đổi giá trị** — filter chết, không ai dùng được.
+- `auctionService.updateAuction` gửi JSON body trong khi backend nhận `startTime`/`endTime` qua request param — sẽ lỗi 400 nếu có trang nào gọi tới (đúng lúc `MyAuctionsPage` mới cần dùng).
 
 **Thứ tự khuyến nghị (ban đầu)**: Phase 0 → 1 → 2 → 3 (không làm tắt/song song vì mỗi phase là điều kiện tiên quyết bảo mật/dữ liệu cho phase sau) → 4 và 5 có thể song song một phần sau khi Phase 3 ổn định.
