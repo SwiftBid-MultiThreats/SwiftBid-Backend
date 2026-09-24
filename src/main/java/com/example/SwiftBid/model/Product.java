@@ -28,10 +28,15 @@ public class Product {
     @Column(name = "name", nullable = false)
     private String name;
     
-    @Lob
+    // Deliberately NOT @Lob: keeps it a plain STRING-typed column (still DDL'd as TEXT) so HQL
+    // string functions like LOWER() used by ProductRepository.search() work (a @Lob/CLOB-mapped
+    // field fails Hibernate 6's function-argument type validation for LOWER()).
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
-    
+
+    @Column(name = "category")
+    private String category;
+
     @Column(name = "initial_price", nullable = false)
     private BigDecimal initialPrice;
     

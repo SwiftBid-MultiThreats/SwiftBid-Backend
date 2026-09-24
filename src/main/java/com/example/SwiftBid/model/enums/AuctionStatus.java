@@ -6,6 +6,6 @@ package com.example.SwiftBid.model.enums;
 public enum AuctionStatus {
     PENDING,    // Sắp diễn ra
     ACTIVE,     // Đang hoạt động
-    ENDED,      // Đã kết thúc
+    COMPLETED,  // Đã kết thúc
     CANCELLED   // Bị hủy
 }

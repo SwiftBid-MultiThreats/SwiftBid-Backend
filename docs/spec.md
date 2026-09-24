@@ -2,10 +2,10 @@
 
 - **Hệ thống**: SwiftBid — Website đấu giá trực tuyến đa luồng (Multi-threaded Online Auction System)
 - **Repo liên quan**: `SwiftBid-Backend` (Spring Boot), `swiftbid-frontend` (React)
-- **Trạng thái tài liệu**: Draft v1.0 — tổng hợp từ mã nguồn hiện có (backend CRUD sơ khai + frontend đã scaffold UI/flow đầy đủ)
-- **Ngày lập**: 2026-09-24
+- **Trạng thái tài liệu**: v1.1 — v1.0 là bản khảo sát ban đầu (backend CRUD sơ khai); **v1.1 phản ánh sau khi đã triển khai Phase 0–5 theo `plan.md`/`tasks.md`** (xem `tasks.md` §"Theo dõi tiến độ nhanh" để biết trạng thái cập nhật từng task — 44/46 task đã xong).
+- **Ngày lập**: 2026-09-24 (khảo sát) — cập nhật triển khai cùng ngày.
 
-> Tài liệu này mô tả **toàn bộ yêu cầu chức năng (FR)** của hệ thống SwiftBid, bao gồm cả phần đã cài đặt và phần frontend đã thiết kế UI/flow nhưng backend chưa hỗ trợ. Mỗi FR có cột **Trạng thái** để phân biệt việc "viết tài liệu cho cái đã có" và "đặc tả cho cái cần làm".
+> Tài liệu này mô tả **toàn bộ yêu cầu chức năng (FR)** của hệ thống SwiftBid. Cột **Trạng thái** bên dưới vẫn giữ nguyên như bản khảo sát ban đầu (✅/🟡/⛔ tại thời điểm chưa code) để giữ tính lịch sử của đặc tả; **trạng thái triển khai thực tế sau khi code xong** nằm ở `tasks.md` (checklist theo từng task, đã tick `[x]` cho các phần đã hoàn thành và có test pass) — gần như toàn bộ FR ở mức ⛔/🟡 trong tài liệu này nay đã chuyển thành ✅ Đã có, ngoại trừ FR-USER-04 (thống kê tài khoản) và FR-NOTIF-02 (email thắng/thua) vẫn còn ⛔.
 
 ---
 

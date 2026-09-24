@@ -1,0 +1,111 @@
+package com.example.SwiftBid;
+
+import com.example.SwiftBid.dto.auction.AuctionDetailResponse;
+import com.example.SwiftBid.dto.auth.AuthResponse;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.*;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/** Covers TC-PROD-01/02/04, TC-AUC-01/02/05 from docs/tests.md. */
+class ProductAndAuctionFlowTest extends AbstractIntegrationTest {
+
+    @Test
+    void createProduct_asPlainUser_isForbidden() {
+        AuthResponse plainUser = register("frank");
+        HttpHeaders headers = authHeaders(plainUser.token());
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        org.springframework.util.MultiValueMap<String, Object> form = new org.springframework.util.LinkedMultiValueMap<>();
+        form.add("name", "Sản phẩm test");
+        form.add("initialPrice", "100000");
+
+        ResponseEntity<Object> response = restTemplate.postForEntity(
+                "/api/products", new HttpEntity<>(form, headers), Object.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void createProduct_asSeller_sellerIsTakenFromToken_notFromClient() {
+        String sellerToken = registerSeller("grace");
+        Long productId = createProduct(sellerToken, "Đồng hồ cổ", new BigDecimal("100000"));
+        assertThat(productId).isNotNull();
+    }
+
+    @Test
+    void myProducts_onlyReturnsCallersOwnProducts() {
+        String seller1 = registerSeller("henry");
+        String seller2 = registerSeller("irene");
+        createProduct(seller1, "Sản phẩm của Henry", new BigDecimal("50000"));
+        createProduct(seller2, "Sản phẩm của Irene", new BigDecimal("70000"));
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/api/products/my-products", HttpMethod.GET, new HttpEntity<>(null, authHeaders(seller1)), Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        List<Map<String, Object>> data = (List<Map<String, Object>>) response.getBody().get("data");
+        assertThat(data).hasSize(1);
+        assertThat(data.get(0).get("name")).isEqualTo("Sản phẩm của Henry");
+    }
+
+    @Test
+    void createAuction_forSomeoneElsesProduct_isForbidden() {
+        String owner = registerSeller("jack");
+        String otherSeller = registerSeller("kate");
+        Long productId = createProduct(owner, "Sản phẩm của Jack", new BigDecimal("80000"));
+
+        HttpHeaders headers = authHeaders(otherSeller);
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        org.springframework.util.MultiValueMap<String, Object> form = new org.springframework.util.LinkedMultiValueMap<>();
+        form.add("productId", productId.toString());
+        form.add("startTime", Instant.now().toString());
+        form.add("endTime", Instant.now().plus(1, ChronoUnit.DAYS).toString());
+
+        ResponseEntity<Object> response = restTemplate.postForEntity(
+                "/api/auctions", new HttpEntity<>(form, headers), Object.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void createAuction_thenFetchDetails_returnsProductAndZeroBids() {
+        String seller = registerSeller("liam");
+        Long productId = createProduct(seller, "Bàn phím cơ", new BigDecimal("300000"));
+        Long auctionId = createAuction(seller, productId,
+                Instant.now().plus(1, ChronoUnit.HOURS).toString(),
+                Instant.now().plus(2, ChronoUnit.DAYS).toString());
+
+        ResponseEntity<AuctionDetailResponse> response = restTemplate.getForEntity(
+                "/api/auctions/{id}/details", AuctionDetailResponse.class, auctionId);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().product().name()).isEqualTo("Bàn phím cơ");
+        assertThat(response.getBody().status()).isEqualTo("PENDING");
+        assertThat(response.getBody().bidCount()).isZero();
+    }
+
+    @Test
+    void createAuction_secondTimeForSameProduct_isConflict() {
+        String seller = registerSeller("mia");
+        Long productId = createProduct(seller, "Laptop Dell", new BigDecimal("500000"));
+        createAuction(seller, productId, Instant.now().toString(), Instant.now().plus(1, ChronoUnit.DAYS).toString());
+
+        HttpHeaders headers = authHeaders(seller);
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        org.springframework.util.MultiValueMap<String, Object> form = new org.springframework.util.LinkedMultiValueMap<>();
+        form.add("productId", productId.toString());
+        form.add("startTime", Instant.now().toString());
+        form.add("endTime", Instant.now().plus(2, ChronoUnit.DAYS).toString());
+
+        ResponseEntity<Object> response = restTemplate.postForEntity(
+                "/api/auctions", new HttpEntity<>(form, headers), Object.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+}
