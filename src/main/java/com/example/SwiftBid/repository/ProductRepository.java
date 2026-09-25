@@ -1,10 +1,20 @@
 package com.example.SwiftBid.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.example.SwiftBid.model.Product;
 
+import java.util.List;
+
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
+
+    List<Product> findBySellerId(Long sellerId);
+
+    @Query("SELECT p FROM Product p WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :q, '%')) "
+            + "OR LOWER(p.description) LIKE LOWER(CONCAT('%', :q, '%'))")
+    List<Product> search(@Param("q") String query);
 }
