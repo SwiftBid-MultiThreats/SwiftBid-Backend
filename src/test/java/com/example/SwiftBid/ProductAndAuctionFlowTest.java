@@ -164,4 +164,27 @@ class ProductAndAuctionFlowTest extends AbstractIntegrationTest {
         assertThat(afterBid.getBody().get("auctionsParticipated")).isEqualTo(1);
         assertThat(afterBid.getBody().get("auctionsWon")).isEqualTo(0); // auction still ACTIVE, not COMPLETED yet
     }
+
+    @Test
+    void searchAuctions_filtersByStatusAndPaginates() {
+        String seller = registerSeller("robert");
+        for (int i = 0; i < 3; i++) {
+            Long productId = createProduct(seller, "Sản phẩm search " + i, new BigDecimal("50000"));
+            createAuction(seller, productId, Instant.now().toString(), Instant.now().plus(1, ChronoUnit.DAYS).toString());
+        }
+
+        ResponseEntity<Map> firstPage = restTemplate.getForEntity(
+                "/api/auctions/search?status=PENDING&page=0&size=2", Map.class);
+
+        assertThat(firstPage.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat((List<?>) firstPage.getBody().get("content")).hasSize(2);
+        assertThat(firstPage.getBody().get("size")).isEqualTo(2);
+        assertThat(((Number) firstPage.getBody().get("totalElements")).intValue()).isGreaterThanOrEqualTo(3);
+    }
+
+    @Test
+    void searchAuctions_invalidStatus_isBadRequest() {
+        ResponseEntity<Object> response = restTemplate.getForEntity("/api/auctions/search?status=NOT_A_STATUS", Object.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
 }

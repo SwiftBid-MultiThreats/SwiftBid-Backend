@@ -1,7 +1,9 @@
 package com.example.SwiftBid.service;
 
 import com.example.SwiftBid.dto.auction.AuctionDetailResponse;
+import com.example.SwiftBid.dto.auction.AuctionPageResponse;
 import com.example.SwiftBid.dto.auction.AuctionResponse;
+import com.example.SwiftBid.model.enums.AuctionStatus;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
@@ -10,6 +12,13 @@ import java.util.List;
 public interface AuctionService {
 
     List<AuctionResponse> getAllAuctions();
+
+    /**
+     * FR-AUC-02 — server-side filter/sort/paginate, so the client never has to download every
+     * auction to filter it locally. {@code sort} is one of NEWEST, ENDING_SOON, PRICE_LOW,
+     * PRICE_HIGH, MOST_BIDS (MOST_BIDS currently falls back to NEWEST — see AuctionServiceImpl).
+     */
+    AuctionPageResponse searchAuctions(AuctionStatus status, String category, String q, String sort, int page, int size);
 
     AuctionResponse getAuctionById(Long id);
 

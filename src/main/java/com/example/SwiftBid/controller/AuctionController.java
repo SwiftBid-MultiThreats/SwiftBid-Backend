@@ -17,7 +17,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.example.SwiftBid.dto.auction.AuctionDetailResponse;
+import com.example.SwiftBid.dto.auction.AuctionPageResponse;
 import com.example.SwiftBid.dto.auction.AuctionResponse;
+import com.example.SwiftBid.exception.BadRequestException;
+import com.example.SwiftBid.model.enums.AuctionStatus;
 import com.example.SwiftBid.security.SecurityUtils;
 import com.example.SwiftBid.service.AuctionService;
 
@@ -33,6 +36,31 @@ public class AuctionController {
     @GetMapping
     public ResponseEntity<List<AuctionResponse>> getAllAuctions() {
         return ResponseEntity.ok(auctionService.getAllAuctions());
+    }
+
+    /**
+     * FR-AUC-02: server-side filter/sort/paginate — the version of "list auctions" that scales.
+     * {@code status}/{@code category}/{@code q} are all optional; {@code sort} is one of
+     * NEWEST (default), ENDING_SOON, PRICE_LOW, PRICE_HIGH, MOST_BIDS.
+     */
+    @GetMapping("/search")
+    public ResponseEntity<AuctionPageResponse> searchAuctions(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size) {
+        AuctionStatus statusEnum = null;
+        if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) {
+            try {
+                statusEnum = AuctionStatus.valueOf(status.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new BadRequestException("Trạng thái không hợp lệ: " + status);
+            }
+        }
+        String categoryFilter = "ALL".equalsIgnoreCase(category) ? null : category;
+        return ResponseEntity.ok(auctionService.searchAuctions(statusEnum, categoryFilter, q, sort, page, size));
     }
 
     @GetMapping("/active")

@@ -71,7 +71,8 @@
 - [x] `T-5.7` [BE] Thống kê tài khoản cho `ProfilePage` (số đấu giá tạo/tham gia/thắng). — FR-USER-04
   - `GET /api/account/stats` (`AccountStatsResponse`), wired vào `ProfilePage.js`.
 - [x] `T-5.8` [BE] (Tùy chọn) `POST /api/contact` lưu `contact_messages`, thay dần EmailJS client-side. — FR-STATIC-02 mở rộng
-- [ ] `T-5.9` [BE] Email thông báo thắng/thua khi auction chuyển `COMPLETED` (nối vào `T-3.5`). — FR-NOTIF-02
+- [x] `T-5.9` [BE] Email thông báo thắng/thua khi auction chuyển `COMPLETED` (nối vào `T-3.5`). — FR-NOTIF-02
+  - `MailService.sendAuctionWonEmail` (người thắng) + `sendAuctionEndedEmailToSeller` (người bán, có/không người thắng), gọi từ `AuctionServiceImpl.completeActiveAuctions()`.
 
 ### Bổ sung ngoài checklist gốc (phát hiện khi audit UI vòng 2)
 
@@ -80,6 +81,14 @@
 - [x] `T-5.12` [FE] Bộ lọc "Danh mục" ở `AuctionsPage`: state `selectedCategory` và logic filter đã có sẵn nhưng **không có UI để đổi giá trị** — filter chết, luôn kẹt ở "ALL". Thêm dropdown chọn danh mục (lấy động từ dữ liệu). — FR-AUC-02
 - [x] `T-5.13` [FE] Sửa `auctionService.updateAuction` gửi JSON body trong khi backend nhận `startTime`/`endTime` qua request param — sẽ luôn lỗi 400 nếu dùng. — FR-AUC-04
 - [x] `T-5.14` [FE] Đồng hồ đếm ngược ở `AuctionDetailPage` giờ tick mỗi giây thay vì chỉ tính 1 lần lúc render.
+
+### Tính năng nâng cao (vòng 3, theo yêu cầu "đảm bảo dự án chạy đầy đủ + tính năng nâng cao")
+
+- [x] `T-6.1` [BE] `GET /api/auctions/search` — lọc/sắp xếp/phân trang **phía server** (status, category, từ khóa, sort, page, size) qua `JpaSpecificationExecutor`, thay vì tải toàn bộ auction về rồi lọc ở client (không scale). `MOST_BIDS` sort rơi về NEWEST ở server (ghi chú rõ lý do trong code) và được sắp lại phía client trong phạm vi 1 trang. — FR-AUC-02
+- [x] `T-6.2` [FE] `AuctionsPage` chuyển hẳn sang gọi `searchAuctions()`, bỏ toàn bộ logic lọc/sắp xếp/cắt trang thủ công ở client.
+- [x] `T-6.3` [FE] Sửa sản phẩm (`MyProductsPage`): trước đây chỉ có Tạo/Xóa. Thêm nút "Sửa" dùng lại modal tạo sản phẩm (không đổi được ảnh khi sửa — ghi chú rõ trong UI, muốn đổi ảnh thì tạo sản phẩm mới). — FR-PROD-04
+- [x] `T-6.4` [BE+FE] Trang **Admin** (`/admin`, chỉ ADMIN thấy trong menu): danh sách người dùng + xóa, dùng API `GET/DELETE /api/users` đã có sẵn ở backend nhưng chưa từng có UI. — FR-ADMIN-01
+- [x] `T-6.5` [FE] Thông báo real-time "Bạn đã bị vượt giá" (toast, `react-toastify`) trên `AuctionDetailPage` khi WebSocket báo có người khác vượt giá của chính mình — tận dụng hạ tầng WebSocket đã có từ Phase 4. — FR-BID-05
 
 ---
 
@@ -92,17 +101,19 @@
 | Phase 2 | 8 | 8 | 0 |
 | Phase 3 | 10 | 10 | 0 |
 | Phase 4 | 7 | 7 | 0 |
-| Phase 5 | 9 + 5 bổ sung | 13 | 1 (`T-5.9`) |
-| **Tổng** | **51** | **50** | **1** |
+| Phase 5 | 9 + 5 bổ sung | 14 | 0 |
+| Phase 6 (nâng cao) | 5 | 5 | 0 |
+| **Tổng** | **56** | **56** | **0** |
 
-**Trạng thái triển khai (cập nhật sau vòng audit UI thứ 2)**: Phase 0–4 và gần như toàn bộ Phase 5 đã cài đặt, có test tích hợp pass (31/31, xem `tests.md` §8 và kết quả `mvn test`), bao gồm cả test đặt giá đồng thời đa luồng (`BidConcurrencyTest`, 10/10 lần chạy không flaky). Chỉ còn lại:
-- `T-5.9` — email thông báo thắng/thua khi phiên đấu giá chuyển `COMPLETED` (P2, không chặn MVP).
+**Trạng thái triển khai (cập nhật sau vòng 3 — "đảm bảo chạy đầy đủ + tính năng nâng cao")**: Toàn bộ 56/56 task đã hoàn thành, có test tích hợp pass (**33/33**, xem `tests.md` §8 và kết quả `mvn test`), bao gồm cả test đặt giá đồng thời đa luồng (`BidConcurrencyTest`, ổn định qua nhiều lần chạy — 1 lần bị timeout do tải hệ thống lúc benchmark, chạy lại riêng lẻ pass 10/10 ngay). Không còn FR nào ở mức ⛔ trong `spec.md`.
 
-Ngoài checklist gốc, quá trình triển khai (2 vòng) còn phát hiện và sửa thêm các lỗi/khoảng trống thực tế không nằm trong kế hoạch ban đầu:
+Ngoài checklist gốc, quá trình triển khai (3 vòng) còn phát hiện và sửa thêm các lỗi/khoảng trống thực tế không nằm trong kế hoạch ban đầu:
 - `bidService.js` (frontend) đọc token từ `localStorage['authToken']` trong khi toàn bộ app dùng key `'token'` — khiến mọi request đặt giá trước đây **không bao giờ gửi kèm JWT**. Đã hợp nhất về dùng chung `config/api.js`.
 - `ProductRepository.search()` dùng `LOWER()` trên field `description` từng được map `@Lob`/CLOB — Hibernate 6 chặn ở bước validate query (lỗi ngay cả với MySQL, không riêng gì H2 test). Đã bỏ `@Lob` khỏi các field mô tả dạng TEXT không cần streaming.
 - Menu người dùng (`Navigation.js`) trỏ tới `/my-auctions`, `/my-bids`, `/settings` — **cả 3 route đều 404 thật** vì trang/route chưa từng được tạo. Đã bổ sung `MyAuctionsPage`, `MyBidsPage` (+ API `GET /api/auctions/my-auctions`, `GET /api/account/stats`); `Settings` trỏ về `/profile`.
 - Bộ lọc "Danh mục" ở `AuctionsPage` có state + logic filter đầy đủ nhưng **không có UI để đổi giá trị** — filter chết, không ai dùng được.
 - `auctionService.updateAuction` gửi JSON body trong khi backend nhận `startTime`/`endTime` qua request param — sẽ lỗi 400 nếu có trang nào gọi tới (đúng lúc `MyAuctionsPage` mới cần dùng).
+- Không có trang Admin nào dù backend đã có sẵn API quản trị (`GET/DELETE /api/users`, cờ bỏ qua kiểm tra chủ sở hữu cho Product/Auction) — không ai dùng được các API đó qua UI.
+- `MyProductsPage` chỉ có Tạo/Xóa, không có Sửa, dù `PUT /api/products/{id}` đã tồn tại từ vòng 1.
 
-**Thứ tự khuyến nghị (ban đầu)**: Phase 0 → 1 → 2 → 3 (không làm tắt/song song vì mỗi phase là điều kiện tiên quyết bảo mật/dữ liệu cho phase sau) → 4 và 5 có thể song song một phần sau khi Phase 3 ổn định.
+**Thứ tự khuyến nghị (ban đầu)**: Phase 0 → 1 → 2 → 3 (không làm tắt/song song vì mỗi phase là điều kiện tiên quyết bảo mật/dữ liệu cho phase sau) → 4 và 5 có thể song song một phần sau khi Phase 3 ổn định. Phase 6 (nâng cao) chỉ nên làm sau khi Phase 0–5 đã ổn định.

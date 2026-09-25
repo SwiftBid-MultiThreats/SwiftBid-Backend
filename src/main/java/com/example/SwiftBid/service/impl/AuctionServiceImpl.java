@@ -1,6 +1,7 @@
 package com.example.SwiftBid.service.impl;
 
 import com.example.SwiftBid.dto.auction.AuctionDetailResponse;
+import com.example.SwiftBid.dto.auction.AuctionPageResponse;
 import com.example.SwiftBid.dto.auction.AuctionResponse;
 import com.example.SwiftBid.exception.BadRequestException;
 import com.example.SwiftBid.exception.ConflictException;
@@ -14,10 +15,16 @@ import com.example.SwiftBid.repository.AuctionDetailRepository;
 import com.example.SwiftBid.repository.AuctionRepository;
 import com.example.SwiftBid.repository.BidRepository;
 import com.example.SwiftBid.repository.ProductRepository;
+import com.example.SwiftBid.repository.spec.AuctionSpecifications;
 import com.example.SwiftBid.service.AuctionService;
 import com.example.SwiftBid.service.FileStorageService;
+import com.example.SwiftBid.service.MailService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -25,6 +32,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.Instant;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -35,10 +43,37 @@ public class AuctionServiceImpl implements AuctionService {
     private final ProductRepository productRepository;
     private final BidRepository bidRepository;
     private final FileStorageService fileStorageService;
+    private final MailService mailService;
 
     @Override
     public List<AuctionResponse> getAllAuctions() {
         return auctionRepository.findAll().stream().map(this::toResponse).toList();
+    }
+
+    @Override
+    public AuctionPageResponse searchAuctions(AuctionStatus status, String category, String q, String sort,
+                                               int page, int size) {
+        Specification<Auction> spec = Specification
+                .where(AuctionSpecifications.hasStatus(status))
+                .and(AuctionSpecifications.hasCategory(category))
+                .and(AuctionSpecifications.matchesSearch(q));
+
+        Sort sortOrder = switch (sort == null ? "NEWEST" : sort.toUpperCase()) {
+            case "ENDING_SOON" -> Sort.by("endTime").ascending();
+            case "PRICE_LOW" -> Sort.by("currentHighestBidAmount").ascending();
+            case "PRICE_HIGH" -> Sort.by("currentHighestBidAmount").descending();
+            // MOST_BIDS would need a GROUP BY-based count that doesn't compose cleanly with the
+            // Specification filters above; falls back to newest-first rather than silently ignore it.
+            default -> Sort.by("createdAt").descending();
+        };
+
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        Page<Auction> result = auctionRepository.findAll(spec, PageRequest.of(safePage, safeSize, sortOrder));
+
+        List<AuctionResponse> content = result.getContent().stream().map(this::toResponse).toList();
+        return new AuctionPageResponse(content, result.getNumber(), result.getSize(),
+                result.getTotalElements(), result.getTotalPages());
     }
 
     @Override
@@ -158,7 +193,31 @@ public class AuctionServiceImpl implements AuctionService {
         List<Auction> due = auctionRepository.findByStatusAndEndTimeLessThanEqual(AuctionStatus.ACTIVE, Instant.now());
         due.forEach(a -> a.setStatus(AuctionStatus.COMPLETED));
         auctionRepository.saveAll(due);
+        due.forEach(this::notifyAuctionCompleted);
         return due.size();
+    }
+
+    /**
+     * FR-NOTIF-02: best-effort email to the winner and seller once an auction completes.
+     * Runs inside the same transaction as the status flip (still has a live session for the
+     * lazy product/seller/bidder associations); a mail failure never rolls back the transition
+     * (see MailServiceImpl, which itself swallows transport errors).
+     */
+    private void notifyAuctionCompleted(Auction auction) {
+        Product product = auction.getProduct();
+        if (product == null || product.getSeller() == null) {
+            return;
+        }
+        String winnerUsername = auction.getCurrentHighestBidder() != null
+                ? auction.getCurrentHighestBidder().getUsername() : null;
+
+        mailService.sendAuctionEndedEmailToSeller(product.getSeller().getEmail(), product.getName(),
+                winnerUsername, auction.getCurrentHighestBidAmount(), auction.getId());
+
+        if (auction.getCurrentHighestBidder() != null) {
+            mailService.sendAuctionWonEmail(auction.getCurrentHighestBidder().getEmail(), product.getName(),
+                    auction.getCurrentHighestBidAmount(), auction.getId());
+        }
     }
 
     private Auction getAuctionEntity(Long id) {
